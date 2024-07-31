@@ -1,0 +1,102 @@
+function keyword_spotting_with_text(audioFilePath, keywordTexts)
+    % Load the main audio file
+    [audioData, fs] = audioread(audioFilePath);
+    
+    % Normalize the audio data
+    audioData = audioData / max(abs(audioData));
+
+    % Initialize variables to store results
+    allTimeIndices = struct();
+    keywordCounts = struct();
+    
+    % Process each keyword
+    for i = 1:length(keywordTexts)
+        keywordText = keywordTexts{i};
+
+        % Generate the keyword audio from the text input (synthetic generation)
+        keywordData = generateKeywordAudio(keywordText, fs);
+
+        % Normalize the keyword data
+        keywordData = keywordData / max(abs(keywordData));
+
+        % Perform cross-correlation
+        correlation = xcorr(audioData, keywordData);
+
+        % Set a threshold for detecting the keyword
+        threshold = 0.7 * max(correlation);
+
+        % Find the peaks in the correlation that represent keyword occurrences
+        [peaks, locs] = findpeaks(correlation, 'MinPeakHeight', threshold, 'MinPeakDistance', length(keywordData));
+
+        % Calculate the time indices of the detected keywords
+        timeIndices = (locs - length(keywordData)) / fs;
+
+        % Store results for the current keyword
+        allTimeIndices.(keywordText) = timeIndices;
+        keywordCounts.(keywordText) = length(timeIndices);
+
+        % Display the time indices of the detected keywords
+        disp(['Keywords "', keywordText, '" detected at the following times (in seconds): ', num2str(timeIndices')]);
+        disp(['Number of "', keywordText, '" detected: ', num2str(length(timeIndices))]);
+    end
+
+    % Plot the main audio signal
+    figure;
+    subplot(3, 1, 1);
+    plot((1:length(audioData)) / fs, audioData);
+    title('Audio Signal');
+    xlabel('Time (s)');
+    ylabel('Amplitude');
+
+    % Plot the cross-correlation result for each keyword
+    subplot(3, 1, 2);
+    hold on;
+    for i = 1:length(keywordTexts)
+        keywordText = keywordTexts{i};
+        keywordData = generateKeywordAudio(keywordText, fs);
+        keywordData = keywordData / max(abs(keywordData));
+        correlation = xcorr(audioData, keywordData);
+        plot((1:length(correlation)) / fs, correlation, 'DisplayName', [keywordText, ' Correlation']);
+    end
+    title('Cross-correlation');
+    xlabel('Lag (s)');
+    ylabel('Correlation');
+    legend('show');
+
+    % Plot the detected keyword times on the main audio signal
+    subplot(3, 1, 3);
+    plot((1:length(audioData)) / fs, audioData);
+    title('Detected Keywords on Audio Signal');
+    xlabel('Time (s)');
+    ylabel('Amplitude');
+    hold on;
+    colors = lines(length(keywordTexts)); % Different colors for each keyword
+    for i = 1:length(keywordTexts)
+        keywordText = keywordTexts{i};
+        timeIndices = allTimeIndices.(keywordText);
+        for j = 1:length(timeIndices)
+            xline(timeIndices(j), 'Color', colors(i,:), 'LineWidth', 2, 'DisplayName', [keywordText, ' @ ', num2str(timeIndices(j), '%.2f'), 's']);
+        end
+    end
+    legend('show');
+end
+
+function keywordAudio = generateKeywordAudio(keywordText, fs)
+    % Generate a simple synthetic waveform as a placeholder for the keyword
+    % For a more realistic approach, use actual audio data
+    duration = 0.5; % 0.5 second duration for the keyword audio
+    t = 0:1/fs:duration-1/fs;
+    
+    % Example: Generate a sine wave for simplicity
+    f = 440; % Frequency of the sine wave (A4 note)
+    keywordAudio = sin(2 * pi * f * t);
+    
+    % Normalize the keyword audio
+    keywordAudio = keywordAudio / max(abs(keywordAudio));
+end
+
+% Example usage:
+audioFilePath = '/MATLAB Drive/Examples/R2024a/deeplearning_shared/KeywordSpottingInNoiseUsingMFCCAndLSTMNetworksExample/keywordtestsignal_Fe4gbRSc.wav'; % Ensure this path is correct
+keywordTexts = {'LEFT' , 'YES'}; % specify the keyword texts
+
+keyword_spotting_with_text(audioFilePath, keywordTexts);
